@@ -141,6 +141,9 @@ func main() {
 	if !strings.Contains(*fioFlags, "--size") {
 		fioArgs.WriteString(" --size=64m")
 	}
+        if !strings.Contains(*fioFlags, "--directory") && !strings.Contains(*fioFlags, "--filename") {
+                fioArgs.WriteString(" --directory=/tmp")
+        }
 	cmd := fmt.Sprintf(
 		"/usr/bin/fio --name=%s --runtime=%s --status-interval=%s %s %s",
 		*name,

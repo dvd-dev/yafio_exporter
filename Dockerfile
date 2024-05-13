@@ -7,8 +7,7 @@ RUN apk add make binutils git fio bash
 COPY . /app
 WORKDIR /app
 
-RUN go build -o yafio_exporter
-RUN strip yafio_exporter
+RUN go build -o yafio_exporter && strip yafio_exporter && mkdir -p /.cache && chown 65534:65534 /.cache
 
 # NOTE(dvd): For some reason, go binary has to be present.
 #FROM alpine:3.19
