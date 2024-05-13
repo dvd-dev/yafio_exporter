@@ -1,26 +1,23 @@
 FROM golang:1.22-alpine AS build
 
-ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 
-RUN apk add make binutils git
+RUN apk add make binutils git fio bash
 
 COPY . /app
 WORKDIR /app
 
-
 RUN go build -o yafio_exporter
 RUN strip yafio_exporter
 
-FROM alpine:3.19
+# NOTE(dvd): For some reason, go binary has to be present.
+#FROM alpine:3.19
+#RUN apk add fio
 
-RUN apk add fio
-
-WORKDIR /
 USER 65534:65534
 
-COPY --from=build /app/yafio_exporter .
+#COPY --from=build /app/yafio_exporter .
 
 EXPOSE 9996
 
-ENTRYPOINT [ "./yafio_exporter" ]
+ENTRYPOINT [ "/app/yafio_exporter" ]
