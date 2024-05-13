@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fio-benchmark-exporter-pvc
+  name: fio-exporter-pvc
 spec:
   accessModes:
   - ReadWriteOnce

@@ -1,7 +1,7 @@
 version: '2.4'
 services:
   fio_benchmark_exporter:
-    container_name: "fio_benchmark_exporter"
+    container_name: "yafio_exporter"
     build:
       context: ./
       dockerfile: Dockerfile

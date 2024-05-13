@@ -1,13 +1,13 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: fio-benchmark-exporter
+  name: fio-exporter
   labels:
-    app: fio-benchmark-exporter
+    app: fio-exporter
 spec:
   selector:
     matchLabels:
-      app: fio-benchmark-exporter
+      app: fio-exporter
   endpoints:
   - port: metrics
     path: /metrics
