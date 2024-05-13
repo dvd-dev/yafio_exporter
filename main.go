@@ -142,7 +142,7 @@ func main() {
 		fioArgs.WriteString(" --size=64m")
 	}
 	cmd := fmt.Sprintf(
-		"fio --name=%s --runtime=%s --status-interval=%s %s %s",
+		"/usr/bin/fio --name=%s --runtime=%s --status-interval=%s %s %s",
 		*name,
 		*runtime,
 		*statusUpdateInterval,
