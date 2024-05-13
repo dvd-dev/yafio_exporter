@@ -15,6 +15,7 @@ RUN strip yafio_exporter
 #RUN apk add fio
 
 USER 65534:65534
+ENV SHELL=/bin/sh
 
 #COPY --from=build /app/yafio_exporter .
 
