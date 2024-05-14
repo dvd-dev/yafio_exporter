@@ -1,22 +1,25 @@
-GO111MODULE := on
 DOCKER_TAG := $(or ${GIT_TAG_NAME}, latest)
+#GOFLAGS := "-ldflags \"-extldflags '-static' -linkmode 'external'\" -tags musl,netgo,osusergo"
+GOFLAGS := "-ldflags=-w -ldflags=-s"
+GOOS := linux
+GOARCH := amd64
 
 all: yafio_exporter
 
+
 .PHONY: yafio_exporter
 yafio_exporter:
-    mkdir -p bin/
-	go build -o bin/yafio_exporter
-	strip bin/yafio_exporter
+        echo "GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GOFLAGS)"
+        CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS) go build -o yafio_exporter .
 
 .PHONY: dockerimages
 dockerimages:
-	docker build -t dvd-dev/yafio_exporter:${DOCKER_TAG} .
+        docker build -t dvd-dev/yafio_exporter:${DOCKER_TAG} .
 
 .PHONY: dockerpush
 dockerpush:
-	docker push dvd-dev/yafio_exporter:${DOCKER_TAG}
+        docker push dvd-dev/yafio_exporter:${DOCKER_TAG}
 
 .PHONY: clean
 clean:
-	rm -f bin/*
+        rm -f yafio_exporter
