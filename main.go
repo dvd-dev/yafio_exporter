@@ -96,6 +96,8 @@ func main() {
 	var wg sync.WaitGroup
 	fioFlags := flag.String("flags", "", "flags passed to fio")
 	name := flag.String("name", "benchmark", "Job name")
+	directory := flag.String("directory", "", "Destination directory")
+	filename := flag.String("filename", "", "Destination file (can be a block device)")
 	testid := flag.String("testid", "", "Test ID label to use with K6")
 	preset := flag.String("preset", "", "Preset name (iops, latency or throughput)")
 	port := flag.String("port", "9996", "metrics tcp listen port")
@@ -141,8 +143,12 @@ func main() {
 	if !strings.Contains(*fioFlags, "--size") {
 		fioArgs.WriteString(" --size=64m")
 	}
-        if !strings.Contains(*fioFlags, "--directory") && !strings.Contains(*fioFlags, "--filename") {
-                fioArgs.WriteString(" --directory=/tmp")
+	if *directory != "" {
+		fioArgs.WriteString(fmt.Sprintf(" --directory=%s", *directory))
+	} else if *filename != "" {
+		fioArgs.WriteString(fmt.Sprintf(" --filename=%s", *filename))
+	} else if !strings.Contains(*fioFlags, "--directory") && !strings.Contains(*fioFlags, "--filename") {
+                fioArgs.WriteString(" --directory=/data")
         }
 	cmd := fmt.Sprintf(
 		"/usr/bin/fio --name=%s --runtime=%s --status-interval=%s %s %s",
