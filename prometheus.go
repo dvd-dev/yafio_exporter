@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,6 +22,7 @@ var perclatnsRex = regexp.MustCompile("^Percentile(?<kind>[C|S]*[L|l]atNs)(?<typ
 var percentileRex = regexp.MustCompile("^Percentile(?<units>[0-9]{1,2})(?<float>[0-9]{2})")
 var fioLatRex = regexp.MustCompile("^FioLat(?<op>GE)*(?<num>[0-9]+)")
 var fioDepthRex = regexp.MustCompile("^FioDepth(?<op>GE)*(?<num>[0-9]+)")
+var labelsFromMetricsRex = regexp.MustCompile("((?<metric>^percentile_[s|c]*lat_(ns|us|ms)_(read|write|trim|sync))_percentile(?<bucket>[0-9]+)|^((?<metric>io_depth_(complete|level|submit))_depth|(?<metric>latency_(us|ms|ns)_lat))[_]*(?<bucket>[0-9]+|ge[0-9]+))$")
 var gauges = make(map[string]prometheus.GaugeVec)
 var metricsMap = make(map[string][]string)
 var labelsMap = make(map[string]string)
@@ -51,6 +53,13 @@ func parseStruct(f interface{}, s *types.Struct, struct_name string, parent_stru
 
 func generateStruct(field reflect.StructField, value reflect.Value, parent_name string, s *types.Struct, generate bool, testid string) {
 	metric_name := generateMetricName(field.Name, parent_name)
+	new_metric_name, bucket, additionalLabels := getBuckets(metric_name)
+	if len(additionalLabels) > 0 {
+		log.Printf("Using new_metric_name %v instead of %v", new_metric_name, metric_name)
+		metric_name = new_metric_name
+	} else {
+		log.Printf("No change to metric_name %v (parent_name: %v field.Name: %v value: %v)", metric_name, parent_name, field, value)
+	}
 	valueType := value.Type().String()
 	isNumber := numbersRex.FindStringIndex(valueType)
 	val := float64(0)
@@ -59,30 +68,37 @@ func generateStruct(field reflect.StructField, value reflect.Value, parent_name 
 	} else if len(isNumber) > 0 {
 		val = float64(value.Int())
 	}
-	if gauge, ok := gauges[metric_name]; ok && !generate {
-		if len(testid) > 0 {
-			gauge.WithLabelValues(labelsMap["bs"], labelsMap["jobname"], labelsMap["iodepth"], labelsMap["size"], labelsMap["rw"], labelsMap["testid"]).Set(val)
-		} else {
-			gauge.WithLabelValues(labelsMap["bs"], labelsMap["jobname"], labelsMap["iodepth"], labelsMap["size"], labelsMap["rw"]).Set(val)
-		}
-		return
-	}
 	lowerFieldName := strings.ToLower(field.Name)
 	converted, err := fieldByName(field.Name, s)
 	convertedType := converted.Type().String()
 	if err != nil {
 		log.Fatalf("Unable to find field %s from %v", field.Name, s.String())
 	}
-	if len(isNumber) > 0 {
-		if strings.Contains(convertedType, "GaugeVec") {
-			if !inMap(metric_name, metricsMap[parent_name]) {
-				metricsMap[parent_name] = append(metricsMap[parent_name], metric_name)
+	if len(isNumber) > 0 && strings.Contains(convertedType, "GaugeVec") {
+		if !inMap(metric_name, metricsMap[parent_name]) {
+			metricsMap[parent_name] = append(metricsMap[parent_name], metric_name)
+		} else if generate {
+			return
+		} else if gauge, ok := gauges[metric_name]; ok {
+			if len(testid) > 0 {
+				if len(additionalLabels) > 0 {
+					gauge.WithLabelValues(labelsMap["bs"], labelsMap["jobname"], labelsMap["iodepth"], labelsMap["size"], labelsMap["rw"], labelsMap["testid"], bucket).Set(val)
+				} else {
+					gauge.WithLabelValues(labelsMap["bs"], labelsMap["jobname"], labelsMap["iodepth"], labelsMap["size"], labelsMap["rw"], labelsMap["testid"]).Set(val)
+				}
 			} else {
-				if !generate {
-					gauges[metric_name] = generateGaugeVec(field.Name, parent_name)
+				if len(additionalLabels) > 0 {
+					gauge.WithLabelValues(labelsMap["bs"], labelsMap["jobname"], labelsMap["iodepth"], labelsMap["size"], labelsMap["rw"], bucket).Set(val)
+				} else {
+					gauge.WithLabelValues(labelsMap["bs"], labelsMap["jobname"], labelsMap["iodepth"], labelsMap["size"], labelsMap["rw"]).Set(val)
 				}
 			}
+			return
+		} else {
+			gauges[metric_name] = generateGaugeVec(field.Name, parent_name)
 		}
+	} else if len(isNumber) > 0 {
+		return
 	} else if strings.Contains(convertedType, "Metrics") {
 		parseStruct(value.Interface(), converted.Type().Underlying().(*types.Struct), field.Name, parent_name, generate, testid)
 	} else if convertedType == "string" {
@@ -110,17 +126,43 @@ func generateMetricName(name string, structName string) string {
 	metric_name = strings.ReplaceAll(metric_name, "_i_o_", "_io_")
 	return metric_name
 }
+func getBuckets(metric_name string) (string, string, []string) {
+	fromMetricsMatch := labelsFromMetricsRex.FindStringSubmatch(metric_name)
+	var additionalLabels []string
+	var bucket string
+	if len(fromMetricsMatch) > 0 {
+		for i, name := range labelsFromMetricsRex.SubexpNames() {
+			if len(fromMetricsMatch[i]) == 0 {
+				continue
+			}
+			if name == "metric" {
+				metric_name = fromMetricsMatch[i]
+				additionalLabels = append(additionalLabels, "bucket")
+			} else if name == "bucket" {
+				bucket = fromMetricsMatch[i]
+			}
+		}
+	}
+
+	return metric_name, bucket, additionalLabels
+
+}
 
 func generateGaugeVec(name string, structName string) prometheus.GaugeVec {
 	metric_name := generateMetricName(name, structName)
+	new_metric_name, _, additionalLabels := getBuckets(metric_name)
+	labels := slices.Concat(savedLabels, additionalLabels)
 	help := getHelp(name, structName, metric_name)
+	if len(additionalLabels) > 0 {
+		metric_name = new_metric_name
+	}
 	log.Printf("Generating gauge for %v (%v) with parent %v: %s", name, metric_name, structName, help)
 	gauge := *prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: prefix,
 			Name:      metric_name,
 			Help:      help,
-		}, savedLabels,
+		}, labels,
 	)
 	promRegistry.MustRegister(gauge)
 	return gauge
