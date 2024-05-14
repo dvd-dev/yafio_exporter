@@ -30,7 +30,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var savedLabels = []string{"bs", "jobname", "iodepth", "size", "rw"}}
+var savedLabels = []string{"bs", "jobname", "iodepth", "size", "rw"}
 var cmdCleanup = regexp.MustCompile(`--(output-format|group_reporting|name|[c|s]*lat_percentiles|runtime|status-interval|time_based)[=]*[^\s]*`)
 var alwaysOn = "--output-format=json --lat_percentiles=1 --clat_percentiles=1 --time_based=1 --group_reporting"
 
