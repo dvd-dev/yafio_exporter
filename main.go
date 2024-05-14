@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"os/signal"
 	"regexp"
 	"strings"
@@ -82,6 +83,14 @@ func (c *CmdIO) Close() error {
 		return err
 	}
 	return nil
+}
+
+func isRoot() bool {
+    currentUser, err := user.Current()
+    if err != nil {
+        log.Fatalf("[isRoot] Unable to get current user: %s", err)
+    }
+    return currentUser.Username == "root"
 }
 
 func main() {
@@ -150,6 +159,10 @@ func main() {
 		fioArgs.WriteString(fmt.Sprintf(" --filename=%s", *filename))
 	} else if !strings.Contains(*fioFlags, "--directory") && !strings.Contains(*fioFlags, "--filename") {
 		fioArgs.WriteString(" --directory=/data")
+	}
+	if ! isRoot() {
+		log.Printf("Can't invalidate the cache because we're not root")
+		fioArgs.WriteString(" --invalidate=0")
 	}
 	cmd := fmt.Sprintf(
 		"%s --name=%s --runtime=%s --status-interval=%s %s %s",
