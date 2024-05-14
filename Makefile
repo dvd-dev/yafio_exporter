@@ -9,17 +9,17 @@ all: yafio_exporter
 
 .PHONY: yafio_exporter
 yafio_exporter:
-        echo "GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GOFLAGS)"
-        CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS) go build -o yafio_exporter .
+		echo "GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GOFLAGS)"
+		CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS) go build -o yafio_exporter .
 
 .PHONY: dockerimages
 dockerimages:
-        docker build -t dvd-dev/yafio_exporter:${DOCKER_TAG} .
+		docker build -t dvd-dev/yafio_exporter:${DOCKER_TAG} .
 
 .PHONY: dockerpush
 dockerpush:
-        docker push dvd-dev/yafio_exporter:${DOCKER_TAG}
+		docker push dvd-dev/yafio_exporter:${DOCKER_TAG}
 
 .PHONY: clean
 clean:
-        rm -f yafio_exporter
+		rm -f yafio_exporter
